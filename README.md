@@ -6,7 +6,7 @@ Vulnerability detection plays a crucial role in the software development lifecyc
 In this paper, we propose HgtJIT, a JIT vulnerability detection approach based on a Heterogeneous Graph Transformer (HGT) to address several limitations of the state-of-the-art CodeJIT approach. We propose diffPDG to represent code changes and use the CCT5 model (the latest feature encoder pre-trained on a large-scale code change corpus) to embed graph nodes to generate the most meaningful vector representations. In addition, we employ HGT to adequately utilize the heterogeneous information of the graph to learn vulnerability features. Extensive experiments have shown that HgtJIT is the best-performing model, with F1 improvement of 3.3% to 12.2% compared to the baseline model.
 
 ## Overview
-![image](Overview.pdf)
+![image](Overview.png)
 
 ## Data Preprocessing
 Run the following commands to process your commit data:
