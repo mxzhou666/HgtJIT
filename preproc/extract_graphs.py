@@ -60,11 +60,6 @@ def main():
             subfolder = '/positives/' if ('positives' in root) else '/negatives/'
             savename = os.path.join(mdatPath + subfolder, file[:-4] + '.npz')
             cnt += 1
-            # if os.path.exists(savename):
-            #     print('[INFO] <main> Have the graph numpy file: [' + str(cnt) + '] ' + savename + RunTime())
-            #     print('=====================================================')
-            #     continue
-            # =====================================================
             nodes, edges, nodes0, edges0, nodes1, edges1 = ReadFile(filename)
             if _CLANG_:
                 nodes = ProcNodes(nodes, 'PatchCPG')

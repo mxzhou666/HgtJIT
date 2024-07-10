@@ -5,21 +5,12 @@ import time
 import dgl
 import numpy as np
 import torch
-from torch_geometric.data import Data
-from torch_geometric.loader import DataLoader
 from hgt_model import HGTClassfication, HGTTest, HGTTrain, GraphDataset
-from PGCN_noAST import PGCN, PGCNTest, PGCNTrain
-import torch.nn as nn
 import torch.optim as optim
-from sklearn.model_selection import train_test_split
 from models import CodeChangeModel, build_load_model
-from transformers import RobertaTokenizer
 
 from preproc import extract_graphs, construct_graphs
 from collections import defaultdict
-import random
-import concurrent.futures
-from functools import partial
 
 logsPath = './logs_hgt/'
 testPath = './testdata/'                 # PDG
@@ -29,9 +20,7 @@ mdlsPath = './models/'
 # parameters
 _CLANG_  = 1
 _NETXARCHT_ = 'HGT'
-_BATCHSIZE_ = 64
 _epochs_ = 50
-# dim_features = 768
 start_time = time.time() #mark start time
 
 class Logger(object):
@@ -85,14 +74,6 @@ def extruct_and_constructgraphs():
                 filename = os.path.join(root, file).replace('\\', '/')
                 filenames.append(filename)
                 extract_construct_single_graph(filename, cct5_model, tokenizer)
-    # partial_func = partial(extract_construct_single_graph, cct5_model=cct5_model,
-    #                        tokenizer=tokenizer)
-    #
-    # with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-    #     results = executor.map(partial_func, filenames)
-    #
-    # for result in results:
-    #     print(result)
 
 # get dataset
 def GetDataset(path=None):
@@ -105,15 +86,9 @@ def GetDataset(path=None):
     graph_list = []
     labels = []
     for root, _, filelist in os.walk(path):
-        # if len(labels) >= 20:
-        #     break
-        # if root != './testdata/787e1353917a99982daa6c277b623c366d671a3e':
-        #     continue
-        # print('load data:' + str(len(labels)))
         for file in filelist:
             # if file[-7:] == '_np.npz':
             if file[-11:] == '_word52.npz':
-            # if file[-11:] == '_cct5v2.npz':
             # if file[-17:] == 'n1_w.log_cct5.npz':
                 # read a numpy graph file.
                 graph = np.load(os.path.join(root, file), allow_pickle=True)
@@ -125,8 +100,6 @@ def GetDataset(path=None):
                 dst_node = edgeIndex[1]
                 nodeAttr = graph['nodeAttr']
                 edgeAttr = graph['edgeAttr']
-                # 前两位代表变更前后10是删除，00是不变，01是新增
-                # 后3位代表边的类型，100CDG  010DDG  001AST
                 nodeType  = graph['nodeType']
                 # print(nodeAttr.shape)
                 # -1为变更前， 0为不变， 1为变更后
@@ -141,17 +114,14 @@ def GetDataset(path=None):
                 for id, type in enumerate(nodeType):
                     if type == '0':
                         nodeDict[id] = keep_index
-                        # keep_node.append(nodeAttr[id])
                         keep_node.append(torch.tensor(nodeAttr[id]))
                         keep_index += 1
                     elif type == '1':
                         nodeDict[id] = add_index
-                        # add_node.append(nodeAttr[id])
                         add_node.append(torch.tensor(nodeAttr[id]))
                         add_index += 1
                     elif type == '-1':
                         nodeDict[id] = del_index
-                        # del_node.append(nodeAttr[id])
                         del_node.append(torch.tensor(nodeAttr[id]))
                         del_index += 1
                 typeDict = {'-1': 'del', '0': 'keep', '1': 'add'}
@@ -184,17 +154,12 @@ def GetDataset(path=None):
                     edge_no = edge_no + 1
 
                 for edge_type_str, (src_list, dst_list) in edges.items():
-                    # src_tensor = torch.tensor(src_list, dtype=torch.int32)
-                    # dst_tensor = torch.tensor(dst_list, dtype=torch.int32)
-                    # edges[edge_type_str] = (src_tensor, dst_tensor)
                     src_array = np.array(src_list)
                     dst_array = np.array(dst_list)
                     edges[edge_type_str] = (src_array, dst_array)
 
                 # Create heterogeneous graph
                 G = dgl.heterograph(edges)
-
-                # print(G)
 
                 # 添加节点属性和边属性
                 for ntype in G.ntypes:
@@ -204,9 +169,6 @@ def GetDataset(path=None):
                         nodes = del_node
                     elif ntype == 'add':
                         nodes = add_node
-                    # print(
-                    #     f"Node type: {ntype}, Number of nodes: {len(nodes)}, Number of attributes: {len(nodes[0])}")  # 添加这行打印语句
-                    # G.nodes[ntype].data['inp'] = torch.tensor(nodes)
                     G.nodes[ntype].data['inp'] = torch.stack(nodes, dim=0)
 
                 G.node_dict = {}
@@ -216,17 +178,8 @@ def GetDataset(path=None):
                 for etype in G.canonical_etypes:
                     G.edge_dict[etype] = len(G.edge_dict)
                     G.edges[etype].data['id'] = torch.ones(G.number_of_edges(etype), dtype=torch.long) * G.edge_dict[etype]
-                # for etype in G.etypes:
-                #     G.edge_dict[etype] = len(G.edge_dict)
-                    # G.edges[etype].data['id'] = torch.ones(G.number_of_edges(etype), dtype=torch.long) * G.edge_dict[etype]
-
                 graph_list.append(G)
                 labels.append(graph['label'])
-    # dataset = GraphDataset(graph_list, labels)
-    # if (0 == len(dataset)):
-    #     print(f'[ERROR] Fail to load data from {path}')
-
-    # return dataset, files
     return graph_list, labels, files
 
 # main
@@ -254,33 +207,10 @@ def main():
             train_indices.append(files.index(id))
         if id in test_ids:
             test_indices.append(files.index(id))
-    # random.seed(42)
-
-    # Create an index list
-    # num_graphs = len(graph_list)
-    # index_list = list(range(num_graphs))
-
-    # Shuffle the index list
-    # random.shuffle(index_list)
-
-    # Define the split ratios (e.g., 80% train, 10% validation, 10% test)
-    # train_ratio = 0.8
-    # val_ratio = 0.1
-    # test_ratio = 0.1
-
-    # Calculate the sizes of each split
-    # train_size = int(num_graphs * train_ratio)
-    # val_size = int(num_graphs * val_ratio)
-
-    # Split the index list into train, validation, and test sets
-    # train_indices = index_list[:train_size]
-    # val_indices = index_list[train_size:train_size + val_size]
-    # test_indices = index_list[train_size + val_size:]
 
     # Use the indices to get the corresponding graphs and labels
     train_graphs = [graph_list[i] for i in train_indices]
     train_labels = [labels[i] for i in train_indices]
-
 
     test_graphs = [graph_list[i] for i in test_indices]
     test_labels = [labels[i] for i in test_indices]
@@ -288,15 +218,13 @@ def main():
 
     n_out = 2  # 输出类别数
     num_node_types = 3  # 节点类型数
-    # num_edge_types = 27  # 边类型数
     num_edge_types = 18  # 边类型数
-    embedding_dim = 52  # 输入维度
-    n_hid = 52  # 隐藏层维度
+    embedding_dim = 768  # 输入维度
+    n_hid = 768  # 隐藏层维度
     n_layers = 3  # 图的层数
     n_heads = 4  # 注意力头的数量
 
     model = HGTClassfication(n_out, num_node_types, num_edge_types, embedding_dim, n_hid, n_layers, n_heads)
-    # criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.002)
     HGTTrain(model, train_graphs, train_labels, optimizer, _epochs_, test_graphs, test_labels, mdlsPath + f'model_HGT_PDG_CCT5_20240628.pth')
     model.load_state_dict(torch.load(mdlsPath + f'model_HGT_PDG_CCT5_20240628.pth')['model_state_dict'])
@@ -320,7 +248,6 @@ if __name__ == '__main__':
         os.makedirs(logsPath)
     sys.stdout = Logger(os.path.join(logsPath, logfile))
 
-    # CCT5
     # extruct_and_constructgraphs()
     main()
 

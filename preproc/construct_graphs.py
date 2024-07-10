@@ -4,7 +4,6 @@
 
 import os
 import sys
-# sys.path.append('D:\\Development\\Projects\\Python\\Just-in-time vulnerability detection\\JIT_VD_HGT\\preproc')
 import time
 import numpy as np
 import pandas as pd
@@ -58,25 +57,16 @@ def main():
     for root, ds, fs in os.walk(mdatPath):
         for file in fs:
             if '.DS_Store' in file: continue
-            # if (cnt >= 10): continue
-            # =====================================================
             filename = os.path.join(root, file).replace('\\', '/')
             savename = filename.replace(mdatPath, ndatPath)
             cnt += 1
-            # if os.path.exists(savename):
-            #     print('[INFO] <main> Have the graph numpy file: [' + str(cnt) + '] ' + savename + RunTime())
-            #     print('=====================================================')
-            #     continue
             print('[INFO] <main> Process the graph numpy file: [' + str(cnt) + '] ' + filename + RunTime())
-            # =====================================================
             nodes, edges, nodes0, edges0, nodes1, edges1, label = ReadFile(filename)
             nodeDict, edgeIndex, edgeAttr = ProcEdges(edges)
             nodeAttr, nodeInvalid = ProcNodes(nodes, nodeDict)
-            # -----------------------------------------------------
             np.savez(savename, edgeIndex=edgeIndex, edgeAttr=edgeAttr, nodeAttr=nodeAttr, label=label, nodeDict=nodeDict)
             print('[INFO] <main> save the graph information into numpy file: [' + str(cnt) + '] ' + savename + RunTime())
             print('-----------------------------------------------------')
-            # =====================================================
             if _TWINS_:
                 savename2 = filename.replace(mdatPath, ndt2Path)
                 nodeDict0, edgeIndex0, edgeAttr0 = ProcEdges(edges0)
@@ -100,10 +90,6 @@ def ReadFile(filename):
     graph = np.load(filename, allow_pickle=True)
     nodes = graph['nodes']
     edges = graph['edges']
-    # nodes0 = graph['nodes0']
-    # edges0 = graph['edges0']
-    # nodes1 = graph['nodes1']
-    # edges1 = graph['edges1']
     label = graph['label']
 
     return nodes, edges, label
